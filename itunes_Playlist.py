@@ -4,18 +4,94 @@ import sys
 import numpy as np
 from matplotlib import pyplot
 
+def findCommonTracks(fileNames):
+    """
+    Find common tracks in the provided playlist files,
+    and save them to common.txt.
+    """
+    # a list of sets of track names
+    trackNameSets = []
+    for fileName in fileNames:
+        # create a new set
+        trackNames = set()
+        # read in a playlist
+        plist = plistlib.readPlist(fileName)
+        # get the tracks
+        tracks = plist['Tracks']
+        # iterate through the tracks
+        for trackId, track in tracks.items():
+            try:
+                # add the track name to a set
+                trackNames.add(track['Name'])
+            except:
+                # ignore
+                pass
+        # add to list
+        trackNameSets.append(trackNames)
+    # get the set of common tracks
+    commonTracks = set.intersection(*trackNameSets)
+    # write to file
+    if len(commonTracks) > 0:
+        f = open("common.txt", "wb")
+        for val in commonTracks:
+            s = "%s\n" % val
+            f.write(s.encode("UTF-8"))
+        f.close()
+        print("%d common tracks found. "
+              "Track names written to common.txt." % len(commonTracks))
+    else:   
+        print("No common tracks!")
 
 
-def findDuplicates(filename):
-    print('Finding duplicate tracks in %s...' % filename)
+def plotStats(fileName):
     # read in a playlist
-    plist = plistlib.readPlist
+    plist = plistlib.readPlist(fileName)
+    # get the tracks from the playlist
+    tracks = plist['Tracks']
+    # create lists of song ratings and track durations
+    ratings = []
+    durations = []
+    # iterate through the tracks
+    for trackId, track in tracks.items():
+        try:
+            ratings.append(track['Album Rating'])
+            durations.append(track['Total Time'])
+        except:
+            # ignore
+            pass
+    # ensure that valid data was collected
+    if ratings == [] or durations == []:
+        print("No valid Album Ratings/Total Time data in %s." % fileName)
+        return
+    # scatter plot
+    x = np.array(durations, np.int32)
+    # convert to minutes
+    x = x/60000.0
+    y = np.array(ratings, np.int32)
+    pyplot.subplot(2, 1, 1)
+    pyplot.plot(x, y, 'o')
+    pyplot.axis([0, 1.05*np.max(x), -1, 110])
+    pyplot.xlabel('Track duration')
+    pyplot.ylabel('Track rating')
+    # plot histogram
+    pyplot.subplot(2, 1, 2)
+    pyplot.hist(x, bins=20)
+    pyplot.xlabel('Track duration')
+    pyplot.ylabel('Count')
+    # show plot
+    pyplot.show()
+
+
+def findDuplicates(fileName):
+    print('Finding duplicate tracks in %s...' % fileName)
+    # read in a playlist
+    plist = plistlib.readPlist(fileName)
     # get the tracks from the Tracks dictionary
     tracks = plist['Tracks']
     # create a track name dictionary
     trackNames = {}
     # iterate through the tracks
-    for trackID, track in tracks.items():
+    for trackId, track in tracks.items():
         try:
             name = track['Name']
             duration = track['Total Time']
@@ -37,93 +113,17 @@ def findDuplicates(filename):
     for k, v in trackNames.items():
         if v[1] > 1:
             dups.append((v[1], k))
-    # save duplicatesto a file
-    if len(dup) > 0:
+    # save duplicates to a file
+    if len(dups) > 0:
         print('Found %d duplicates. Track names saved to dup.txt' % len(dups))
     else:
         print("No duplicate tracks found!")
-    f = open("dups.txt", "w")
+
+    f = open("dups.txt", "wb")
     for val in dups:
-        f.write("[%d] %s \n" % (val[0], val[1]))
+        s = "%s" % val
+        f.write(s.encode("UTF-8"("[%d] %s \n" % (val[0], val[1]))))
     f.close()
-
-
-def findCommonTracks(filename):
-    # a list of sets of track names
-    trackNameSets = []
-    for filename in fileNames:
-        # create a new set
-        trackNames = set()
-        # read in a playlist
-        plist = plistlib.readPlist(fileName)
-        # get the tracks
-        tracks = plist['Tracks']
-        # iterate through the tracks
-        for trackID, track in tracks.items():
-            try:
-                # add the track name to a set
-                trackNames.add(track['Name'])
-            except:
-                # ignore
-                pass
-        # add to list
-        trackNameSets.append(trackNames)
-    # get the set of common tracks
-    commonTracks = set.intersection(*trackNameSets)
-    # write to file
-    if len(commonTracks) > 0:
-        f = open("common.txt", "w")
-        for val in commonTracks:
-            s = "%s\n" % val
-            f.write(s.encode("UTF-8"))
-        f.close()
-        print("%d common tracks found. "
-              "Track names written to common.txt." % len(commonTracks))
-    else:
-        print("No common tracks!")
-
-
-def plotStats(filename):
-    # read in a playlist
-    plist = plist.readPlist(filename)
-    # get the tracks from the playlist
-    tracks = plist['Tracks']
-    # create lists of song ratings and track durations
-    ratings = []
-    durations = []
-    # iterate through the tracks
-    for trackID, track in tracks.items():
-        try:
-            ratings.append(track['Album Rating'])
-            durations.append(track['Total Time'])
-        except:
-            # ignore
-            pass
-
-    # ensure that valid data was collected
-    if ratings == [] or durations == []:
-        print("No valid Album Ratings/Total Time data in %s." % filename)
-        return
-
-    # scatter plot
-    x = np.array(durations, np.int32)
-    # convert to minutes
-    x = x/60000.0
-    y = np.array(ratings, np.int32)
-    pyplot.subplot(2, 1, 1)
-    pyplot.plot(x, y, 'o')
-    pyplot.axis([0, 1.05*np.max(x), -1, 110])
-    pyplot.xlabel('Track duration')
-    pyplot.ylabel('Track rating')
-
-    # plot histogram
-    pyplot.subplot(2, 1, 2)
-    pyplot.hist(x, bins=20)
-    pyplot.xlabel('Track duration')
-    pyplot.ylabel('Count')
-
-    # show plot
-    pyplot.show()
 
 
 def main():
@@ -154,7 +154,11 @@ def main():
         findDuplicates(args.plFileD)
     else:
         print("These are not the tracks you are looking for.")
-                    
+
+
+# main method
+if __name__ == '__main__':
+    main()
 
 
 
